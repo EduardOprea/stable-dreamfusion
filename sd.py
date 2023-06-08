@@ -40,7 +40,7 @@ class UNet2DConditionOutput:
     sample: torch.HalfTensor # Not sure how to check what unet_traced.pt contains, and user wants. HalfTensor or FloatTensor
 
 class StableDiffusion(nn.Module):
-    def __init__(self, device, fp16, vram_O, sd_version='2.1', hf_key=None):
+    def __init__(self, device, fp16, vram_O, sd_version='2.1', hf_key=None, custom_lora_attn_path = None):
         super().__init__()
 
         self.device = device
@@ -57,6 +57,8 @@ class StableDiffusion(nn.Module):
             model_key = "stabilityai/stable-diffusion-2-base"
         elif self.sd_version == '1.5':
             model_key = "runwayml/stable-diffusion-v1-5"
+        elif self.sd_version == '1.4':
+            model_key = "CompVis/stable-diffusion-v1-4"
         else:
             raise ValueError(f'Stable-diffusion version {self.sd_version} not supported.')
 
@@ -64,7 +66,8 @@ class StableDiffusion(nn.Module):
 
         # Create model
         pipe = StableDiffusionPipeline.from_pretrained(model_key, torch_dtype=precision_t)
-
+        if custom_lora_attn_path is not None:
+            pipe.unet.load_attn_procs(custom_lora_attn_path)
         if isfile('./unet_traced.pt'):
             # use jitted unet
             unet_traced = torch.jit.load('./unet_traced.pt')
